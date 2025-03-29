@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useMediaQuery } from '../hooks/use-media-query';
@@ -8,9 +7,10 @@ interface SigilCanvasProps {
   sigilIndex: number;
   onRendered?: () => void;
   customImage: File | null;
+  shaderCode?: string;
 }
 
-const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, customImage }) => {
+const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, customImage, shaderCode }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -98,7 +98,8 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, custo
             const shaderMaterial = createShaderMaterial(
               loadedTexture, 
               container.clientWidth, 
-              container.clientHeight
+              container.clientHeight,
+              shaderCode
             );
             
             materialRef.current = shaderMaterial;
@@ -137,7 +138,8 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, custo
             const shaderMaterial = createShaderMaterial(
               fallbackTexture, 
               container.clientWidth, 
-              container.clientHeight
+              container.clientHeight,
+              shaderCode
             );
             
             materialRef.current = shaderMaterial;
@@ -172,11 +174,12 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, custo
       // Use fallback texture for standard sigils
       texture = createFallbackTexture();
           
-      // Create shader material using the utility function
+      // Create shader material using the utility function with custom shader code if provided
       const shaderMaterial = createShaderMaterial(
         texture, 
         container.clientWidth, 
-        container.clientHeight
+        container.clientHeight,
+        shaderCode
       );
       
       materialRef.current = shaderMaterial;
@@ -240,7 +243,7 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, custo
       
       materialRef.current = null;
     };
-  }, [sigilIndex, onRendered, customImage]);
+  }, [sigilIndex, onRendered, customImage, shaderCode]);
   
   return (
     <div 

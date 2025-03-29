@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 
 // Vertex shader remains the same
@@ -9,7 +10,7 @@ export const vertexShader = `
   }
 `;
 
-// Updated fragment shader for pulsing white circle on black background
+// Default fragment shader for pulsing white circle on black background
 export const fragmentShader = `
   #ifdef GL_ES
   precision mediump float;
@@ -17,6 +18,7 @@ export const fragmentShader = `
   
   uniform sampler2D u_texture;
   uniform float time;
+  uniform vec2 resolution;
   varying vec2 vUv;
   
   void main() {
@@ -37,15 +39,21 @@ export const fragmentShader = `
   }
 `;
 
-// Create shader material with the given texture
-export const createShaderMaterial = (sigilTexture: THREE.Texture, containerWidth: number, containerHeight: number) => {
+// Create shader material with the given texture and optional custom shader code
+export const createShaderMaterial = (
+  sigilTexture: THREE.Texture, 
+  containerWidth: number, 
+  containerHeight: number,
+  customShaderCode?: string
+) => {
   return new THREE.ShaderMaterial({
     uniforms: {
       u_texture: { value: sigilTexture },
-      time: { value: 0.0 }
+      time: { value: 0.0 },
+      resolution: { value: new THREE.Vector2(containerWidth, containerHeight) }
     },
     vertexShader,
-    fragmentShader,
+    fragmentShader: customShaderCode || fragmentShader,
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthTest: false,
