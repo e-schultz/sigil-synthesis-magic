@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 
 // Vertex shader remains the same
@@ -21,15 +20,8 @@ export const fragmentShader = `
   varying vec2 vUv;
   
   void main() {
-    // Center the coordinates
-    vec2 centeredUv = vUv - 0.5;
-    
-    // Calculate distance from center (for circle shape)
-    float dist = length(centeredUv);
-    
-    // Create a circle mask based on the texture
+    // Get texture value (using R channel)
     vec4 tex = texture2D(u_texture, vUv);
-    float circleMask = tex.r;
     
     // Create pulsing effect
     float pulse = 0.7 + 0.3 * sin(time * 2.0);
@@ -38,8 +30,8 @@ export const fragmentShader = `
     vec3 color = vec3(1.0, 1.0, 1.0) * pulse;
     
     // Final color: white circle on black background
-    // Use the sigil texture as a mask for the circle shape
-    float alpha = circleMask * pulse;
+    // Use the texture as a mask for the circle shape
+    float alpha = tex.r * pulse;
     
     gl_FragColor = vec4(color, alpha);
   }

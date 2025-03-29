@@ -49,71 +49,69 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Load sigil texture
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.crossOrigin = 'anonymous'; // Ensure cross-origin loading works
-    
-    const onTextureLoaded = (texture: THREE.Texture) => {
-      texture.flipY = false; // Try with and without this depending on your texture
+    // Create a fallback texture if loading fails
+    const createFallbackTexture = () => {
+      const size = 512;
+      const data = new Uint8Array(size * size * 4);
       
-      // Create shader material using the utility function
-      const shaderMaterial = createShaderMaterial(
-        texture, 
-        container.clientWidth, 
-        container.clientHeight
-      );
-      
-      materialRef.current = shaderMaterial;
-      
-      // Create plane
-      const geometry = new THREE.PlaneGeometry(2, 2);
-      const plane = new THREE.Mesh(geometry, shaderMaterial);
-      scene.add(plane);
-      
-      // Animation loop
-      const animate = () => {
-        animationIdRef.current = requestAnimationFrame(animate);
-        
-        // Update time uniform for pulsing effect
-        if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
-          shaderMaterial.uniforms.time.value += 0.01;
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          const index = (i * size + j) * 4;
+          
+          // Calculate distance from center (normalized 0-1)
+          const x = i / size - 0.5;
+          const y = j / size - 0.5;
+          const dist = Math.sqrt(x * x + y * y) * 2; // *2 to normalize to 0-1 range
+          
+          // Create a circular gradient (1 at center, 0 at edges)
+          const value = Math.max(0, 1 - dist);
+          
+          // RGBA: Use the value for red channel (which our shader uses)
+          data[index] = value * 255;     // R
+          data[index + 1] = value * 255; // G
+          data[index + 2] = value * 255; // B
+          data[index + 3] = value * 255; // A
         }
-        
-        renderer.render(scene, camera);
-      };
+      }
       
-      animate();
-      
-      // Notify parent component that rendering is complete
-      if (onRendered) onRendered();
+      const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+      texture.needsUpdate = true;
+      return texture;
     };
     
-    // Handle texture loading errors
-    const onTextureError = (error: ErrorEvent) => {
-      console.error(`Error loading sigil texture: ${error.message}`);
-      // Fallback to a simple material if texture fails
-      const fallbackMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.7
-      });
+    // Load texture or use fallback
+    const texture = createFallbackTexture();
+        
+    // Create shader material using the utility function
+    const shaderMaterial = createShaderMaterial(
+      texture, 
+      container.clientWidth, 
+      container.clientHeight
+    );
+    
+    materialRef.current = shaderMaterial;
+    
+    // Create plane
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    const plane = new THREE.Mesh(geometry, shaderMaterial);
+    scene.add(plane);
+    
+    // Animation loop
+    const animate = () => {
+      animationIdRef.current = requestAnimationFrame(animate);
       
-      const geometry = new THREE.PlaneGeometry(2, 2);
-      const plane = new THREE.Mesh(geometry, fallbackMaterial);
-      scene.add(plane);
+      // Update time uniform for pulsing effect
+      if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
+        shaderMaterial.uniforms.time.value += 0.01;
+      }
       
       renderer.render(scene, camera);
-      
-      if (onRendered) onRendered();
     };
     
-    // Load texture with proper error handling
-    textureLoader.load(
-      `/sigils/sigil-${sigilIndex}.png`, 
-      onTextureLoaded, 
-      undefined, // onProgress callback is not needed
-      onTextureError
-    );
+    animate();
+    
+    // Notify parent component that rendering is complete
+    if (onRendered) onRendered();
     
     const handleResize = () => {
       if (!canvasRef.current || !renderer) return;
