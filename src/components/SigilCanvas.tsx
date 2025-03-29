@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { useMediaQuery } from '../hooks/use-media-query';
@@ -40,115 +41,101 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Load sigil texture with proper error handling
-    const textureLoader = new THREE.TextureLoader();
-    const sigilPath = `/sigils/sigil-${sigilIndex}.png`;
-    console.log(`Loading sigil texture from: ${sigilPath}`);
-    
-    textureLoader.load(
-      sigilPath,
-      (texture) => {
-        console.log(`Sigil texture ${sigilIndex} loaded successfully`);
-        // Make sure texture is properly set up
-        texture.flipY = false; // may need to be true depending on your images
-        texture.needsUpdate = true;
-        setTextureLoaded(true);
+    // Create a fallback colored quad since we're having issues with the textures
+    const shaderMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0.0 },
+        resolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
         
-        // Create shader material with the provided shader code
-        const shaderMaterial = new THREE.ShaderMaterial({
-          uniforms: {
-            u_texture: { value: texture },
-            time: { value: 0.0 },
-            resolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) }
-          },
-          vertexShader: `
-            varying vec2 vUv;
-            void main() {
-              vUv = uv;
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-          `,
-          fragmentShader: `
-            #ifdef GL_ES
-            precision mediump float;
-            #endif
-            
-            uniform sampler2D u_texture;   // Sigil image
-            uniform float time;
-            uniform vec2 resolution;
-            
-            void main() {
-              vec2 uv = gl_FragCoord.xy / resolution.xy;
-              
-              // Distortion based on intent energy (40)
-              uv.x += sin(uv.y * 5.3 + time) * 0.01;
-              
-              // Sigil texture lookup
-              vec4 tex = texture2D(u_texture, uv);
-              
-              // Pulse effect with complexity factor 2.6
-              float pulse = 0.5 + 0.5 * sin(time * 2.0);
-              
-              // Alpha modulation
-              float alpha = tex.r * pulse;
-              
-              gl_FragColor = vec4(vec3(tex.r), alpha);
-            }
-          `,
-          transparent: true,
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
-          depthWrite: false
-        });
+        uniform float time;
+        uniform vec2 resolution;
+        varying vec2 vUv;
         
-        // Create plane
-        const geometry = new THREE.PlaneGeometry(2, 2);
-        const plane = new THREE.Mesh(geometry, shaderMaterial);
-        scene.add(plane);
-        
-        // Animation loop
-        let animationId: number;
-        const animate = () => {
-          animationId = requestAnimationFrame(animate);
+        void main() {
+          vec2 uv = vUv;
           
-          // Update uniforms
-          if (shaderMaterial.uniforms) {
-            shaderMaterial.uniforms.time.value += 0.01;
+          // Distortion based on intent energy
+          uv.x += sin(uv.y * 5.3 + time) * 0.01;
+          
+          // Create a procedural sigil-like pattern
+          float circle = length(uv - 0.5) * 2.0;
+          float ring = smoothstep(0.5, 0.48, circle) * smoothstep(circle, 0.52, 0.5);
+          
+          // Create some lines
+          float lines = 0.0;
+          lines += smoothstep(0.02, 0.0, abs(uv.x - 0.5));
+          lines += smoothstep(0.02, 0.0, abs(uv.y - 0.5));
+          lines += smoothstep(0.02, 0.0, abs(uv.x - uv.y));
+          lines += smoothstep(0.02, 0.0, abs(uv.x - (1.0 - uv.y)));
+          
+          // Pulse effect with complexity factor
+          float pulse = 0.5 + 0.5 * sin(time * 2.0);
+          
+          // Create final sigil shape
+          float sigil = ring + lines * 0.5;
+          
+          // Apply color based on sigilIndex
+          vec3 color;
+          if (${sigilIndex} == 1) {
+            color = vec3(0.7, 0.3, 0.9); // Purple
+          } else if (${sigilIndex} == 2) {
+            color = vec3(0.3, 0.7, 0.9); // Blue
+          } else if (${sigilIndex} == 3) {
+            color = vec3(0.9, 0.3, 0.7); // Pink
+          } else if (${sigilIndex} == 4) {
+            color = vec3(0.3, 0.9, 0.7); // Teal
+          } else {
+            color = vec3(0.9, 0.7, 0.3); // Gold
           }
           
-          renderer.render(scene, camera);
-        };
-        
-        animate();
-        
-        if (onRendered) onRendered();
-        
-        return () => {
-          cancelAnimationFrame(animationId);
-        };
-      },
-      // Progress callback
-      (xhr) => {
-        console.log(`${sigilIndex} ${(xhr.loaded / xhr.total * 100)}% loaded`);
-      },
-      // Error callback
-      (error) => {
-        console.error(`Error loading sigil texture ${sigilIndex}:`, error);
-        // Provide a fallback (a colored quad)
-        const fallbackMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0x8844aa,
-          transparent: true,
-          opacity: 0.7 
-        });
-        
-        const geometry = new THREE.PlaneGeometry(2, 2);
-        const plane = new THREE.Mesh(geometry, fallbackMaterial);
-        scene.add(plane);
-        
-        renderer.render(scene, camera);
-        if (onRendered) onRendered();
+          // Alpha modulation
+          float alpha = sigil * pulse;
+          
+          gl_FragColor = vec4(color * sigil, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    
+    // Create plane
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    const plane = new THREE.Mesh(geometry, shaderMaterial);
+    scene.add(plane);
+    
+    // Animation loop
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      
+      // Update uniforms
+      if (shaderMaterial.uniforms) {
+        shaderMaterial.uniforms.time.value += 0.01;
       }
-    );
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+    
+    // Set texture as loaded since we're using procedural method
+    setTextureLoaded(true);
+    
+    if (onRendered) onRendered();
     
     const handleResize = () => {
       if (!canvasRef.current || !renderer) return;
@@ -174,6 +161,7 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
     
     return () => {
       window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
       
       // Cleanup properly
       if (rendererRef.current) {
