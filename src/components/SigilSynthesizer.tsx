@@ -169,7 +169,11 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
           </div>
           <div className="flex items-center gap-2">
             {useAI ? (
-              <Badge variant="outline" className="bg-green-100 dark:bg-green-900/20 border-green-400 dark:border-green-700">
+              <Badge 
+                variant="outline" 
+                className="bg-green-100 dark:bg-green-900/20 border-green-400 dark:border-green-700 cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/40"
+                onClick={() => setApiKeyDialogOpen(true)}
+              >
                 <Sparkles className="h-3.5 w-3.5 mr-1 text-green-600 dark:text-green-400" />
                 <span>AI Enabled</span>
               </Badge>
