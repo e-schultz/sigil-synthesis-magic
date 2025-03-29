@@ -1,4 +1,6 @@
 
+import * as THREE from 'three';
+
 // Shader code utilities for the Sigil Canvas
 
 // Vertex shader for sigil rendering
