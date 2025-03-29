@@ -65,16 +65,8 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     if (saveApiKey(apiKey)) {
       setUseAI(true);
       setApiKeyDialogOpen(false);
-      toast({
-        title: "API Key Saved",
-        description: "Your OpenAI API key has been saved for this session.",
-      });
     } else {
-      toast({
-        title: "Invalid API Key",
-        description: "Please enter a valid OpenAI API key starting with 'sk-'.",
-        variant: "destructive"
-      });
+      setApiKey('');
     }
   };
 
@@ -82,10 +74,6 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     clearApiKey();
     setUseAI(false);
     setApiKey('');
-    toast({
-      title: "API Key Removed",
-      description: "Your OpenAI API key has been removed.",
-    });
   };
 
   const generateSigil = async () => {
@@ -138,10 +126,18 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
       });
     } catch (error) {
       console.error("Error generating sigil:", error);
+      
       toast({
         title: "Synthesis Failed",
         description: error instanceof Error ? error.message : "Failed to synthesize sigil with OpenAI.",
-        variant: "destructive"
+        variant: "destructive",
+        action: {
+          label: "Reset API Key",
+          onClick: () => {
+            clearOpenAIKey();
+            setApiKeyDialogOpen(true);
+          }
+        }
       });
     } finally {
       setIsGenerating(false);
