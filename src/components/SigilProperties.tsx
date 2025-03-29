@@ -5,12 +5,14 @@ interface SigilPropertiesProps {
   energyLevel: number[];
   complexity: number[];
   description?: string;
+  apiConfigured?: boolean;
 }
 
 const SigilProperties: React.FC<SigilPropertiesProps> = ({ 
   energyLevel, 
   complexity,
-  description
+  description,
+  apiConfigured = false
 }) => {
   // Calculate some fictional attributes based on the energy level and complexity
   const resonance = Math.round((energyLevel[0] * 0.8 + complexity[0] * 0.2) / 10);
@@ -65,6 +67,11 @@ const SigilProperties: React.FC<SigilPropertiesProps> = ({
             <span className="text-muted-foreground">Alignment:</span>
             <span className="font-medium">{alignment}</span>
           </li>
+          {!apiConfigured && (
+            <li className="mt-2 text-amber-600 dark:text-amber-400 text-xs">
+              <span>⚠️ AI enhancement unavailable - OpenAI API key not set</span>
+            </li>
+          )}
         </ul>
       </div>
 

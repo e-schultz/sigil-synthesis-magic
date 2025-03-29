@@ -31,3 +31,9 @@ void main() {
 export const getDefaultShaderDescription = (): string => {
   return "A mystical sigil pulsing with arcane energy, binding intent to reality.";
 };
+
+// Check if the API key is properly set in localStorage
+export const isApiKeyConfigured = (): boolean => {
+  const apiKey = localStorage.getItem('openai_api_key');
+  return !!apiKey && apiKey.startsWith('sk-') && apiKey.length > 20;
+};
