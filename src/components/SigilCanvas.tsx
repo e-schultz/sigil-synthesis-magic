@@ -13,6 +13,7 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const animationIdRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [textureLoaded, setTextureLoaded] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -27,13 +28,15 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
     // Dispose of the renderer properly
     if (rendererRef.current) {
       const renderer = rendererRef.current;
+      
+      // Save the canvas element reference before disposing
+      if (renderer.domElement && !canvasRef.current) {
+        canvasRef.current = renderer.domElement;
+      }
+      
+      // Dispose of the renderer
       renderer.dispose();
       rendererRef.current = null;
-      
-      // Remove any lingering DOM elements from the container *safely*
-      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
-        containerRef.current.removeChild(renderer.domElement);
-      }
     }
     
     // Clean up the scene resources
@@ -41,13 +44,17 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       const scene = sceneRef.current;
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
-          object.geometry.dispose();
+          if (object.geometry) {
+            object.geometry.dispose();
+          }
           
-          const material = object.material as THREE.Material | THREE.Material[];
-          if (Array.isArray(material)) {
-            material.forEach(m => m.dispose());
-          } else {
-            material.dispose();
+          if (object.material) {
+            const material = object.material as THREE.Material | THREE.Material[];
+            if (Array.isArray(material)) {
+              material.forEach(m => m.dispose());
+            } else {
+              material.dispose();
+            }
           }
         }
       });
@@ -59,9 +66,37 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
     }
   };
 
+  // Safely remove canvas from container
+  const safelyRemoveCanvas = () => {
+    if (containerRef.current) {
+      try {
+        // First check if there are any child nodes to remove
+        if (containerRef.current.childNodes.length > 0) {
+          const childNodes = Array.from(containerRef.current.childNodes);
+          
+          // Remove each child node safely
+          childNodes.forEach(node => {
+            if (node instanceof HTMLCanvasElement) {
+              try {
+                containerRef.current?.removeChild(node);
+              } catch (error) {
+                console.log("Canvas was already removed");
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error during canvas removal:", error);
+      }
+    }
+  };
+
   useEffect(() => {
     // Always clean up previous resources when sigilIndex changes
     cleanupResources();
+    
+    // Safely remove any existing canvas before creating a new one
+    safelyRemoveCanvas();
     
     if (!containerRef.current) return;
     
@@ -89,9 +124,15 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       
+      // Save canvas reference
+      canvasRef.current = renderer.domElement;
+      
+      // Clear container before adding
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      
       // Manually attach the renderer to the DOM
-      // First, ensure we're not creating nested canvas elements
-      container.innerHTML = '';
       container.appendChild(renderer.domElement);
       rendererRef.current = renderer;
       
@@ -213,7 +254,20 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       // Return cleanup function
       return () => {
         window.removeEventListener('resize', handleResize);
+        
+        // First cancel animation frame
+        if (animationIdRef.current !== null) {
+          cancelAnimationFrame(animationIdRef.current);
+          animationIdRef.current = null;
+        }
+        
+        // Then fully dispose resources
         cleanupResources();
+        
+        // Finally, safely remove canvas (after a small delay to ensure React has finished its operations)
+        setTimeout(() => {
+          safelyRemoveCanvas();
+        }, 0);
       };
     } catch (error) {
       console.error("Error initializing WebGL context:", error);
