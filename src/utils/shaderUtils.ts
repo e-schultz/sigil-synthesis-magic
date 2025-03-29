@@ -1,5 +1,15 @@
 import * as THREE from 'three';
 
+// Define shader types for better organization
+export type ShaderType = 'default' | 'blueYellowPulse' | 'intuitionEcho' | 'customShader';
+
+// Interface for shader information
+export interface ShaderInfo {
+  name: string;
+  code: string;
+  description: string;
+}
+
 // Vertex shader remains the same
 export const vertexShader = `
   varying vec2 vUv;
@@ -80,7 +90,7 @@ export const blueYellowPulseShader = `
   }
 `;
 
-// Intuition echo ripple shader (new)
+// Intuition echo ripple shader
 export const intuitionEchoShader = `
   #ifdef GL_ES
   precision mediump float;
@@ -146,6 +156,25 @@ export const createShaderMaterial = (
   });
 };
 
+// Shader collection with descriptions for better UX
+export const shaderCollection: Record<string, ShaderInfo> = {
+  default: {
+    name: 'Default',
+    code: fragmentShader,
+    description: 'A simple pulsing white sigil on a black background.'
+  },
+  blueYellowPulse: {
+    name: 'Blue-Yellow Pulse',
+    code: blueYellowPulseShader,
+    description: 'An energetic sigil with blue and yellow pulses interweaving through the form.'
+  },
+  intuitionEcho: {
+    name: 'Intuition Echo',
+    code: intuitionEchoShader,
+    description: 'A mysterious sigil with rippling waves of intuitive energy and lavender-blue hues.'
+  }
+};
+
 // Utility to get shader for specific intents
 export const getShaderForIntent = (intent: string): string => {
   const lowerIntent = intent.toLowerCase();
@@ -160,4 +189,14 @@ export const getShaderForIntent = (intent: string): string => {
   
   // Default shader if no specific intent matches
   return fragmentShader;
+};
+
+// Get shader description based on shader code
+export const getShaderDescription = (shaderCode: string): string => {
+  for (const key in shaderCollection) {
+    if (shaderCollection[key].code === shaderCode) {
+      return shaderCollection[key].description;
+    }
+  }
+  return "Custom shader with unique visual effects.";
 };

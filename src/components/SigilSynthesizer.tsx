@@ -9,8 +9,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, Wand2, Layers, Code, RefreshCw, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
-  generateRandomGLSLCode, 
-  getDefaultShaderDescription, 
   isApiKeyConfigured, 
   saveApiKey, 
   clearApiKey,
@@ -18,22 +16,15 @@ import {
   generateShaderDescription
 } from '../utils/sigilUtils';
 import { modifyShaderWithOpenAI } from '../utils/openaiUtils';
+import { getShaderForIntent } from '../utils/shaderUtils';
 import SigilDisplay from './SigilDisplay';
 import SigilControls from './SigilControls';
 import SigilCodeDisplay from './SigilCodeDisplay';
 import SigilProperties from './SigilProperties';
 import ImageUpload from './ImageUpload';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import ApiKeyDialog from './ApiKeyDialog';
+import ApiLogsDisplay from './ApiLogsDisplay';
 import { ToastAction } from "@/components/ui/toast";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const SIGIL_COUNT = 5;
 
@@ -50,9 +41,8 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
   const [sigilCode, setSigilCode] = useState('');
   const [customImage, setCustomImage] = useState<File | null>(null);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
-  const [apiKey, setApiKey] = useState('');
   const [useAI, setUseAI] = useState(false);
-  const [sigilDescription, setSigilDescription] = useState(getDefaultShaderDescription());
+  const [sigilDescription, setSigilDescription] = useState('A mystical sigil with pulsing energy');
   const [apiLogs, setApiLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const { toast } = useToast();
@@ -63,30 +53,27 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
       setUseAI(true);
     }
 
-    const initialCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
+    const initialCode = generateIntentBasedShader('', energyLevel[0], complexity[0]);
     setSigilCode(initialCode);
   }, []);
 
   useEffect(() => {
     if (!isGenerating && !useAI) {
-      const newCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
+      const newCode = generateIntentBasedShader('', energyLevel[0], complexity[0]);
       setSigilCode(newCode);
     }
   }, [energyLevel, complexity, activeSigil]);
 
-  const saveOpenAIKey = () => {
-    if (saveApiKey(apiKey)) {
+  const saveOpenAIKey = (key: string) => {
+    if (saveApiKey(key)) {
       setUseAI(true);
       setApiKeyDialogOpen(false);
-    } else {
-      setApiKey('');
     }
   };
 
   const clearOpenAIKey = () => {
     clearApiKey();
     setUseAI(false);
-    setApiKey('');
   };
 
   const addLogEntry = (entry: string) => {
@@ -108,7 +95,7 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     
     try {
       if (useAI && localStorage.getItem('openai_api_key')) {
-        const baseShader = generateRandomGLSLCode(energyLevel[0], complexity[0]);
+        const baseShader = generateIntentBasedShader(intentText, energyLevel[0], complexity[0]);
         
         addLogEntry(`Starting AI shader generation with intent: "${intentText}"`);
         
@@ -127,9 +114,11 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
         setSigilCode(result.code);
         setSigilDescription(result.description);
       } else {
-        // Use the new intent-based shader generation
+        // Use intent-based shader generation
         addLogEntry("Using intent-based shader generation (no OpenAI)");
-        const newShaderCode = generateIntentBasedShader(intentText, energyLevel[0], complexity[0]);
+        
+        // Use the enhanced shader utility
+        const newShaderCode = getShaderForIntent(intentText);
         addLogEntry("Intent-based shader generated");
         setSigilCode(newShaderCode);
         
@@ -160,7 +149,7 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
           <ToastAction 
             altText="Reset API Key" 
             onClick={() => {
-              clearOpenAIKey();
+              clearApiKey();
               setApiKeyDialogOpen(true);
             }}
           >
@@ -228,30 +217,7 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
       </CardHeader>
       
       <CardContent>
-        {showLogs && apiLogs.length > 0 && (
-          <div className="mb-6 overflow-auto">
-            <Alert>
-              <AlertTitle className="flex items-center justify-between">
-                <span>API Request Logs</span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowLogs(false)}
-                  className="h-6 px-2"
-                >
-                  Hide
-                </Button>
-              </AlertTitle>
-              <AlertDescription>
-                <div className="mt-2 bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-xs font-mono overflow-x-auto max-h-40">
-                  {apiLogs.map((log, index) => (
-                    <div key={index} className="pb-1">{log}</div>
-                  ))}
-                </div>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
+        {showLogs && <ApiLogsDisplay logs={apiLogs} onHideLogs={() => setShowLogs(false)} />}
         
         <div className="grid md:grid-cols-5 gap-6">
           <div className="md:col-span-3 space-y-6">
@@ -358,47 +324,13 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
         </Button>
       </CardFooter>
 
-      <Dialog open={apiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enter OpenAI API Key</DialogTitle>
-            <DialogDescription>
-              Your API key is stored locally in your browser and is never sent to our servers.
-              You'll need a key with access to GPT-4 models.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">API Key</label>
-              <Input
-                type="password"
-                placeholder="sk-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Get your API key from{" "}
-                <a 
-                  href="https://platform.openai.com/api-keys" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  OpenAI's platform
-                </a>
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="flex space-x-2 justify-end">
-            {localStorage.getItem('openai_api_key') && (
-              <Button variant="outline" onClick={clearOpenAIKey}>
-                Remove Key
-              </Button>
-            )}
-            <Button onClick={saveOpenAIKey}>Save API Key</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ApiKeyDialog 
+        open={apiKeyDialogOpen} 
+        onOpenChange={setApiKeyDialogOpen}
+        onSaveKey={saveOpenAIKey}
+        onClearKey={clearOpenAIKey}
+        hasExistingKey={!!localStorage.getItem('openai_api_key')}
+      />
     </Card>
   );
 };
