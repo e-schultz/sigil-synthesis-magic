@@ -60,6 +60,8 @@ export const createShaderMaterial = (sigilTexture: THREE.Texture, containerWidth
     vertexShader,
     fragmentShader,
     transparent: true,
-    blending: THREE.AdditiveBlending
+    blending: THREE.AdditiveBlending,
+    depthTest: false, // Add this to ensure transparency works
+    depthWrite: false // Add this to ensure transparency works properly
   });
 };
