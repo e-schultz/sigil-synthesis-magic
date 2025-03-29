@@ -10,20 +10,27 @@ uniform vec2 resolution;
 
 void main() {
   vec2 uv = gl_FragCoord.xy / resolution.xy;
-  
+
   // Distortion based on intent energy (${energyLevel})
-  uv.x += sin(uv.y * ${(complexity / 10).toFixed(1)} + time) * 0.01;
-  
+  uv.x += sin(uv.y * 30.0 + time * 0.5) * 0.02;
+  uv.y += cos(uv.x * 25.0 + time * 0.5) * 0.02;
+
   // Sigil texture lookup
   vec4 tex = texture2D(u_texture, uv);
-  
+
   // Pulse effect with complexity factor ${(complexity / 20).toFixed(1)}
-  float pulse = 0.5 + 0.5 * sin(time * ${(energyLevel / 20).toFixed(1)});
-  
+  float pulse = 0.5 + 0.5 * sin(time * 5.0);
+
+  // Color modulation based on intent
+  float bluIntensity = 0.5 + 0.5 * sin(uv.y * 10.0 + time);
+
+  // Combine texture color with blue modulation
+  vec3 color = mix(tex.rgb, vec3(0.0, 0.0, bluIntensity), 0.5);
+
   // Alpha modulation
   float alpha = tex.r * pulse;
-  
-  gl_FragColor = vec4(vec3(tex.r), alpha);
+
+  gl_FragColor = vec4(color, alpha);
 }`;
 };
 
