@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ToastAction } from "@/components/ui/toast";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const SIGIL_COUNT = 5;
 
@@ -43,6 +45,8 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
   const [apiKey, setApiKey] = useState('');
   const [useAI, setUseAI] = useState(false);
   const [sigilDescription, setSigilDescription] = useState(getDefaultShaderDescription());
+  const [apiLogs, setApiLogs] = useState<string[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -77,6 +81,10 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     setApiKey('');
   };
 
+  const addLogEntry = (entry: string) => {
+    setApiLogs(prevLogs => [...prevLogs, `[${new Date().toLocaleTimeString()}] ${entry}`]);
+  };
+
   const generateSigil = async () => {
     if (!intentText.trim()) {
       toast({
@@ -88,45 +96,50 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     }
 
     setIsGenerating(true);
+    setApiLogs([]);
     
     try {
       if (useAI && localStorage.getItem('openai_api_key')) {
         const baseShader = generateRandomGLSLCode(energyLevel[0], complexity[0]);
         
-        toast({
-          title: "Synthesizing with AI",
-          description: "Using OpenAI to encode your intent into a unique shader...",
-        });
+        addLogEntry(`Starting AI shader generation with intent: "${intentText}"`);
         
-        console.log("Starting AI shader generation with intent:", intentText);
         const result = await modifyShaderWithOpenAI(
           intentText,
           baseShader,
           energyLevel[0],
-          complexity[0]
+          complexity[0],
+          (toastProps) => {
+            toast(toastProps);
+            addLogEntry(toastProps.title + ': ' + toastProps.description);
+          }
         );
         
-        console.log("Received AI shader result:", result);
+        addLogEntry(`Shader generation complete. Description: "${result.description}"`);
         setSigilCode(result.code);
         setSigilDescription(result.description);
       } else {
-        console.log("Using random shader generation (no AI)");
+        addLogEntry("Using random shader generation (no AI)");
         const newShaderCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
-        console.log("Generated new shader code:", newShaderCode.substring(0, 100) + "...");
+        addLogEntry("Random shader generated");
         setSigilCode(newShaderCode);
         
         setSigilDescription(getDefaultShaderDescription());
 
         const newSigilIndex = Math.floor(Math.random() * SIGIL_COUNT) + 1;
         setActiveSigil(newSigilIndex);
+        
+        toast({
+          title: "Sigil Synthesized",
+          description: "Your intent has been encoded into a new shader sigil.",
+        });
       }
       
-      toast({
-        title: "Sigil Synthesized",
-        description: "Your intent has been encoded into a new shader sigil.",
-      });
+      setShowLogs(true);
     } catch (error) {
       console.error("Error generating sigil:", error);
+      addLogEntry(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setShowLogs(true);
       
       toast({
         title: "Synthesis Failed",
@@ -188,15 +201,47 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
                 Set OpenAI Key
               </Button>
             )}
-            <Badge variant="outline" className="bg-black/5 dark:bg-white/5">
-              <Sparkles className="h-3.5 w-3.5 mr-1" />
-              <span>Fragment Shader v4.3</span>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "bg-black/5 dark:bg-white/5 cursor-pointer",
+                showLogs && "bg-blue-100 dark:bg-blue-900/20 border-blue-400 dark:border-blue-700"
+              )}
+              onClick={() => setShowLogs(!showLogs)}
+            >
+              <Code className="h-3.5 w-3.5 mr-1" />
+              <span>API Logs</span>
             </Badge>
           </div>
         </div>
       </CardHeader>
       
       <CardContent>
+        {showLogs && apiLogs.length > 0 && (
+          <div className="mb-6 overflow-auto">
+            <Alert>
+              <AlertTitle className="flex items-center justify-between">
+                <span>API Request Logs</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowLogs(false)}
+                  className="h-6 px-2"
+                >
+                  Hide
+                </Button>
+              </AlertTitle>
+              <AlertDescription>
+                <div className="mt-2 bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-xs font-mono overflow-x-auto max-h-40">
+                  {apiLogs.map((log, index) => (
+                    <div key={index} className="pb-1">{log}</div>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+        
         <div className="grid md:grid-cols-5 gap-6">
           <div className="md:col-span-3 space-y-6">
             <SigilDisplay 

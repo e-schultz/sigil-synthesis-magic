@@ -8,15 +8,30 @@ export const modifyShaderWithOpenAI = async (
   intent: string, 
   baseShader: string, 
   energyLevel: number, 
-  complexity: number
+  complexity: number,
+  showToast?: (props: { title: string; description: string; variant?: "default" | "destructive" }) => void
 ): Promise<ShaderModificationResponse> => {
   try {
     console.log('Starting OpenAI shader modification request...');
+    if (showToast) {
+      showToast({
+        title: "Starting API Request",
+        description: `Processing intent: "${intent}"`,
+      });
+    }
+    
     // For frontend-only apps, we would require the user to input their API key
     const apiKey = localStorage.getItem('openai_api_key');
     
     if (!apiKey) {
       console.error('OpenAI API key not found in localStorage');
+      if (showToast) {
+        showToast({
+          title: "API Key Error",
+          description: "OpenAI API key not found",
+          variant: "destructive"
+        });
+      }
       throw new Error('OpenAI API key not found');
     }
 
@@ -40,6 +55,13 @@ export const modifyShaderWithOpenAI = async (
 
     console.log('Sending request to OpenAI API with model: gpt-4o...');
     console.time('openai_request_time');
+    
+    if (showToast) {
+      showToast({
+        title: "OpenAI Request Sent",
+        description: "Generating shader code, please wait...",
+      });
+    }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -70,6 +92,13 @@ export const modifyShaderWithOpenAI = async (
     if (!response.ok) {
       const errorData = await response.json();
       console.error('OpenAI API error details:', errorData);
+      if (showToast) {
+        showToast({
+          title: "API Error",
+          description: `Error: ${errorData.error?.message || "Unknown API error"}`,
+          variant: "destructive"
+        });
+      }
       throw new Error(`OpenAI API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
     }
 
@@ -77,11 +106,32 @@ export const modifyShaderWithOpenAI = async (
     console.log(`Received OpenAI shader response, completion tokens: ${data.usage?.completion_tokens || 'unknown'}`);
     console.log(`Total tokens used: ${data.usage?.total_tokens || 'unknown'}`);
     
-    const shaderCode = data.choices[0].message.content.trim();
+    if (showToast) {
+      showToast({
+        title: "Shader Generated",
+        description: `Used ${data.usage?.total_tokens || 'unknown'} tokens`,
+      });
+    }
+    
+    // Make sure the content doesn't have markdown backticks
+    let shaderCode = data.choices[0].message.content.trim();
+    if (shaderCode.startsWith("```") && shaderCode.endsWith("```")) {
+      shaderCode = shaderCode.substring(3, shaderCode.length - 3).trim();
+    }
+    if (shaderCode.startsWith("```glsl") && shaderCode.endsWith("```")) {
+      shaderCode = shaderCode.substring(7, shaderCode.length - 3).trim();
+    }
     
     // Generate a brief description
     console.log('Requesting sigil description from OpenAI...');
     console.time('description_request_time');
+    
+    if (showToast) {
+      showToast({
+        title: "Generating Description",
+        description: "Creating mystical sigil description...",
+      });
+    }
     
     const descriptionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -112,6 +162,13 @@ export const modifyShaderWithOpenAI = async (
     if (!descriptionResponse.ok) {
       const errorData = await descriptionResponse.json();
       console.error('Description API error details:', errorData);
+      if (showToast) {
+        showToast({
+          title: "Description Error",
+          description: "Failed to generate mystical description",
+          variant: "destructive"
+        });
+      }
       throw new Error(`Description API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
     }
 
@@ -121,6 +178,13 @@ export const modifyShaderWithOpenAI = async (
     const description = descriptionData.choices[0].message.content.trim();
     console.log(`Generated description: "${description}"`);
     console.log('OpenAI process completed successfully');
+    
+    if (showToast) {
+      showToast({
+        title: "Sigil Complete",
+        description: `${description.substring(0, 60)}${description.length > 60 ? '...' : ''}`,
+      });
+    }
 
     return {
       code: shaderCode,
@@ -129,6 +193,13 @@ export const modifyShaderWithOpenAI = async (
   } catch (error) {
     console.error('Error in OpenAI shader modification:', error);
     console.trace('Stack trace for OpenAI error');
+    if (showToast) {
+      showToast({
+        title: "Synthesis Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive"
+      });
+    }
     throw error;
   }
 };
