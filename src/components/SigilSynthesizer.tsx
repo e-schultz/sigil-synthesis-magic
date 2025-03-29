@@ -23,6 +23,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ToastAction } from "@/components/ui/toast";
 
 const SIGIL_COUNT = 5;
 
@@ -131,13 +132,17 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
         title: "Synthesis Failed",
         description: error instanceof Error ? error.message : "Failed to synthesize sigil with OpenAI.",
         variant: "destructive",
-        action: {
-          label: "Reset API Key",
-          onClick: () => {
-            clearOpenAIKey();
-            setApiKeyDialogOpen(true);
-          }
-        }
+        action: (
+          <ToastAction 
+            altText="Reset API Key" 
+            onClick={() => {
+              clearOpenAIKey();
+              setApiKeyDialogOpen(true);
+            }}
+          >
+            Reset API Key
+          </ToastAction>
+        )
       });
     } finally {
       setIsGenerating(false);
