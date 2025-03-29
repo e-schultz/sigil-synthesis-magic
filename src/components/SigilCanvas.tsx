@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useMediaQuery } from '../hooks/use-media-query';
 
@@ -9,284 +9,143 @@ interface SigilCanvasProps {
 }
 
 const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const animationIdRef = useRef<number | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [textureLoaded, setTextureLoaded] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Important cleanup function to be used in multiple places
-  const cleanupResources = () => {
-    // Cancel any ongoing animation frame
-    if (animationIdRef.current !== null) {
-      cancelAnimationFrame(animationIdRef.current);
-      animationIdRef.current = null;
-    }
-    
-    // Dispose of the renderer properly
-    if (rendererRef.current) {
-      const renderer = rendererRef.current;
-      
-      // Save the canvas element reference before disposing
-      if (renderer.domElement && !canvasRef.current) {
-        canvasRef.current = renderer.domElement;
-      }
-      
-      // Dispose of the renderer
-      renderer.dispose();
-      rendererRef.current = null;
-    }
-    
-    // Clean up the scene resources
-    if (sceneRef.current) {
-      const scene = sceneRef.current;
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          if (object.geometry) {
-            object.geometry.dispose();
-          }
-          
-          if (object.material) {
-            const material = object.material as THREE.Material | THREE.Material[];
-            if (Array.isArray(material)) {
-              material.forEach(m => m.dispose());
-            } else {
-              material.dispose();
-            }
-          }
-        }
-      });
-      
-      // Clear the scene
-      while (scene.children.length > 0) {
-        scene.remove(scene.children[0]);
-      }
-    }
-  };
-
-  // Safely remove canvas from container
-  const safelyRemoveCanvas = () => {
-    if (containerRef.current) {
-      try {
-        // First check if there are any child nodes to remove
-        if (containerRef.current.childNodes.length > 0) {
-          const childNodes = Array.from(containerRef.current.childNodes);
-          
-          // Remove each child node safely
-          childNodes.forEach(node => {
-            if (node instanceof HTMLCanvasElement) {
-              try {
-                containerRef.current?.removeChild(node);
-              } catch (error) {
-                console.log("Canvas was already removed");
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Error during canvas removal:", error);
-      }
-    }
-  };
-
   useEffect(() => {
-    // Always clean up previous resources when sigilIndex changes
-    cleanupResources();
-    
-    // Safely remove any existing canvas before creating a new one
-    safelyRemoveCanvas();
-    
-    if (!containerRef.current) return;
-    
-    // Initial setup
-    const container = containerRef.current;
-    setTextureLoaded(false);
+    if (!canvasRef.current) return;
+
+    // Setup
+    const container = canvasRef.current;
     
     // Create scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     
-    // Create camera - use orthographic for 2D sigil rendering
+    // Create camera
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
     camera.position.z = 1;
     
-    // Create renderer with explicit context
-    try {
-      const renderer = new THREE.WebGLRenderer({ 
-        alpha: true, 
-        antialias: true,
-        powerPreference: 'high-performance'
-      });
+    // Create renderer
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+    
+    // Load sigil texture
+    const textureLoader = new THREE.TextureLoader();
+    const sigilTexture = textureLoader.load(`/sigils/sigil-${sigilIndex}.png`, () => {
+      if (onRendered) onRendered();
+    });
+    
+    // Create shader material
+    const shaderMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        u_texture: { value: sigilTexture },
+        time: { value: 0.0 },
+        resolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+        
+        uniform sampler2D u_texture;
+        uniform float time;
+        uniform vec2 resolution;
+        varying vec2 vUv;
+        
+        void main() {
+          // Distort UVs slightly based on time
+          vec2 uv = vUv;
+          uv.x += sin(uv.y * 10.0 + time * 0.5) * 0.01;
+          uv.y += cos(uv.x * 10.0 + time * 0.5) * 0.01;
+          
+          // Texture lookup from sigil
+          vec4 tex = texture2D(u_texture, uv);
+          
+          // Pulse effect based on time
+          float pulse = 0.5 + 0.5 * sin(time * 2.0 + uv.y * 10.0);
+          
+          // Glow effect
+          float glow = 0.8 + 0.2 * sin(time * 3.0);
+          
+          // Create color based on position and time
+          vec3 color = vec3(0.3, 0.4, 0.9) * glow;
+          color += vec3(0.7, 0.3, 0.9) * (1.0 - glow);
+          
+          // Use sigil brightness to drive alpha and color
+          float alpha = tex.r * pulse;
+          
+          gl_FragColor = vec4(color * tex.r, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending
+    });
+    
+    // Create plane
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    const plane = new THREE.Mesh(geometry, shaderMaterial);
+    scene.add(plane);
+    
+    // Animation loop
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
       
-      // Configure renderer
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      
-      // Save canvas reference
-      canvasRef.current = renderer.domElement;
-      
-      // Clear container before adding
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
+      // Update uniforms
+      if (shaderMaterial.uniforms) {
+        shaderMaterial.uniforms.time.value += 0.01;
       }
       
-      // Manually attach the renderer to the DOM
-      container.appendChild(renderer.domElement);
-      rendererRef.current = renderer;
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+    
+    const handleResize = () => {
+      if (!canvasRef.current || !renderer) return;
       
-      // Create a shader-based sigil using the fragment shader
-      const shaderMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0.0 },
-          resolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) }
-        },
-        vertexShader: `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          #ifdef GL_ES
-          precision mediump float;
-          #endif
-          
-          uniform float time;
-          uniform vec2 resolution;
-          varying vec2 vUv;
-          
-          void main() {
-            vec2 uv = vUv;
-            
-            // Distortion based on intent energy
-            uv.x += sin(uv.y * 5.3 + time) * 0.01;
-            
-            // Create a procedural sigil-like pattern
-            float circle = length(uv - 0.5) * 2.0;
-            float ring = smoothstep(0.5, 0.48, circle) * smoothstep(circle, 0.52, 0.5);
-            
-            // Create some lines
-            float lines = 0.0;
-            lines += smoothstep(0.02, 0.0, abs(uv.x - 0.5));
-            lines += smoothstep(0.02, 0.0, abs(uv.y - 0.5));
-            lines += smoothstep(0.02, 0.0, abs(uv.x - uv.y));
-            lines += smoothstep(0.02, 0.0, abs(uv.x - (1.0 - uv.y)));
-            
-            // Pulse effect with complexity factor
-            float pulse = 0.5 + 0.5 * sin(time * 2.0);
-            
-            // Create final sigil shape
-            float sigil = ring + lines * 0.5;
-            
-            // Apply color based on sigilIndex
-            vec3 color;
-            if (${sigilIndex} == 1) {
-              color = vec3(0.7, 0.3, 0.9); // Purple
-            } else if (${sigilIndex} == 2) {
-              color = vec3(0.3, 0.7, 0.9); // Blue
-            } else if (${sigilIndex} == 3) {
-              color = vec3(0.9, 0.3, 0.7); // Pink
-            } else if (${sigilIndex} == 4) {
-              color = vec3(0.3, 0.9, 0.7); // Teal
-            } else {
-              color = vec3(0.9, 0.7, 0.3); // Gold
-            }
-            
-            // Alpha modulation
-            float alpha = sigil * pulse;
-            
-            gl_FragColor = vec4(color * sigil, alpha);
-          }
-        `,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthTest: false,
-        depthWrite: false
-      });
+      const width = canvasRef.current.clientWidth;
+      const height = canvasRef.current.clientHeight;
       
-      // Create plane geometry
-      const geometry = new THREE.PlaneGeometry(2, 2);
-      const plane = new THREE.Mesh(geometry, shaderMaterial);
-      scene.add(plane);
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
       
-      // Animation loop - store the animationId for cleanup
-      const animate = () => {
-        // Safe check in case component unmounted during frame
-        if (!rendererRef.current || !containerRef.current) return;
-        
-        animationIdRef.current = requestAnimationFrame(animate);
-        
-        // Update uniforms
-        if (shaderMaterial.uniforms) {
-          shaderMaterial.uniforms.time.value += 0.01;
-        }
-        
-        renderer.render(scene, camera);
-      };
+      if (shaderMaterial.uniforms) {
+        shaderMaterial.uniforms.resolution.value.set(width, height);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
       
-      animate();
-      
-      // Texture loaded - procedural shader is ready immediately
-      setTextureLoaded(true);
-      if (onRendered) onRendered();
-      
-      // Handle resize event
-      const handleResize = () => {
-        if (!containerRef.current || !rendererRef.current) return;
-        
-        const width = containerRef.current.clientWidth;
-        const height = containerRef.current.clientHeight;
-        
-        camera.updateProjectionMatrix();
-        rendererRef.current.setSize(width, height);
-        
-        // Update resolution uniform
-        if (shaderMaterial.uniforms && shaderMaterial.uniforms.resolution) {
-          shaderMaterial.uniforms.resolution.value.set(width, height);
-        }
-      };
-      
-      window.addEventListener('resize', handleResize);
-      
-      // Return cleanup function
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        
-        // First cancel animation frame
-        if (animationIdRef.current !== null) {
-          cancelAnimationFrame(animationIdRef.current);
-          animationIdRef.current = null;
-        }
-        
-        // Then fully dispose resources
-        cleanupResources();
-        
-        // Finally, safely remove canvas (after a small delay to ensure React has finished its operations)
-        setTimeout(() => {
-          safelyRemoveCanvas();
-        }, 0);
-      };
-    } catch (error) {
-      console.error("Error initializing WebGL context:", error);
-      setTextureLoaded(false);
-      return; // Early return if renderer creation fails
-    }
+      if (rendererRef.current) {
+        container.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+    };
   }, [sigilIndex, onRendered]);
-
+  
   return (
     <div 
-      ref={containerRef} 
-      className="w-full h-full min-h-[300px] rounded-lg overflow-hidden bg-black/5 dark:bg-white/5 relative"
-    >
-      {!textureLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-          <p>Loading sigil...</p>
-        </div>
-      )}
-    </div>
+      ref={canvasRef} 
+      className="w-full h-full min-h-[300px] rounded-lg overflow-hidden"
+    />
   );
 };
 
