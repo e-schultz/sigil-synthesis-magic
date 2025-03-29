@@ -13,6 +13,7 @@ import SigilDisplay from './SigilDisplay';
 import SigilControls from './SigilControls';
 import SigilCodeDisplay from './SigilCodeDisplay';
 import SigilProperties from './SigilProperties';
+import ImageUpload from './ImageUpload';
 
 const SIGIL_COUNT = 5;
 
@@ -27,6 +28,7 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
   const [complexity, setComplexity] = useState([30]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [sigilCode, setSigilCode] = useState('');
+  const [customImage, setCustomImage] = useState<File | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,6 +62,16 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     }, 2000);
   };
 
+  const handleImageUpload = (file: File) => {
+    setCustomImage(file);
+    setActiveSigil(0); // Set a special index for custom image
+    
+    toast({
+      title: "Custom Sigil Uploaded",
+      description: "Your custom sigil image has been applied.",
+    });
+  };
+
   return (
     <Card className={cn("w-full max-w-4xl mx-auto", className)}>
       <CardHeader>
@@ -78,7 +90,11 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
       <CardContent>
         <div className="grid md:grid-cols-5 gap-6">
           <div className="md:col-span-3 space-y-6">
-            <SigilDisplay sigilIndex={activeSigil} isGenerating={isGenerating} />
+            <SigilDisplay 
+              sigilIndex={activeSigil} 
+              isGenerating={isGenerating} 
+              customImage={customImage}
+            />
             <SigilControls 
               energyLevel={energyLevel}
               setEnergyLevel={setEnergyLevel}
@@ -101,6 +117,11 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
                 />
               </div>
             </div>
+            
+            <ImageUpload 
+              onImageUpload={handleImageUpload} 
+              isDisabled={isGenerating}
+            />
             
             <Tabs defaultValue="shader">
               <TabsList className="grid grid-cols-2 mb-2">
@@ -131,6 +152,8 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
           variant="secondary"
           size="lg"
           onClick={() => {
+            // Reset custom image when cycling
+            setCustomImage(null);
             const newIndex = activeSigil % SIGIL_COUNT + 1;
             setActiveSigil(newIndex);
           }}

@@ -7,9 +7,10 @@ import { createShaderMaterial } from '../utils/shaderUtils';
 interface SigilCanvasProps {
   sigilIndex: number;
   onRendered?: () => void;
+  customImage: File | null;
 }
 
-const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => {
+const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered, customImage }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -78,40 +79,130 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       texture.needsUpdate = true;
       return texture;
     };
+
+    let texture: THREE.Texture;
     
-    // Load texture or use fallback
-    const texture = createFallbackTexture();
+    // Handle custom image if it exists
+    if (customImage) {
+      const loadCustomImage = async () => {
+        const imageUrl = URL.createObjectURL(customImage);
         
-    // Create shader material using the utility function
-    const shaderMaterial = createShaderMaterial(
-      texture, 
-      container.clientWidth, 
-      container.clientHeight
-    );
-    
-    materialRef.current = shaderMaterial;
-    
-    // Create plane
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    const plane = new THREE.Mesh(geometry, shaderMaterial);
-    scene.add(plane);
-    
-    // Animation loop
-    const animate = () => {
-      animationIdRef.current = requestAnimationFrame(animate);
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(
+          imageUrl,
+          // On successful load
+          (loadedTexture) => {
+            URL.revokeObjectURL(imageUrl); // Clean up the URL object
+            
+            // Create shader material with the loaded texture
+            const shaderMaterial = createShaderMaterial(
+              loadedTexture, 
+              container.clientWidth, 
+              container.clientHeight
+            );
+            
+            materialRef.current = shaderMaterial;
+            
+            // Create plane
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const plane = new THREE.Mesh(geometry, shaderMaterial);
+            scene.add(plane);
+            
+            // Animation loop
+            const animate = () => {
+              animationIdRef.current = requestAnimationFrame(animate);
+              
+              // Update time uniform for pulsing effect
+              if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
+                shaderMaterial.uniforms.time.value += 0.01;
+              }
+              
+              renderer.render(scene, camera);
+            };
+            
+            animate();
+            
+            // Notify parent component that rendering is complete
+            if (onRendered) onRendered();
+          },
+          // On progress
+          undefined,
+          // On error
+          (error) => {
+            console.error('Error loading custom image:', error);
+            // Use fallback texture instead
+            const fallbackTexture = createFallbackTexture();
+            
+            // Create shader material using the utility function
+            const shaderMaterial = createShaderMaterial(
+              fallbackTexture, 
+              container.clientWidth, 
+              container.clientHeight
+            );
+            
+            materialRef.current = shaderMaterial;
+            
+            // Create plane
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const plane = new THREE.Mesh(geometry, shaderMaterial);
+            scene.add(plane);
+            
+            // Animation loop
+            const animate = () => {
+              animationIdRef.current = requestAnimationFrame(animate);
+              
+              // Update time uniform for pulsing effect
+              if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
+                shaderMaterial.uniforms.time.value += 0.01;
+              }
+              
+              renderer.render(scene, camera);
+            };
+            
+            animate();
+            
+            // Notify parent component that rendering is complete
+            if (onRendered) onRendered();
+          }
+        );
+      };
       
-      // Update time uniform for pulsing effect
-      if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
-        shaderMaterial.uniforms.time.value += 0.01;
-      }
+      loadCustomImage();
+    } else {
+      // Use fallback texture for standard sigils
+      texture = createFallbackTexture();
+          
+      // Create shader material using the utility function
+      const shaderMaterial = createShaderMaterial(
+        texture, 
+        container.clientWidth, 
+        container.clientHeight
+      );
       
-      renderer.render(scene, camera);
-    };
-    
-    animate();
-    
-    // Notify parent component that rendering is complete
-    if (onRendered) onRendered();
+      materialRef.current = shaderMaterial;
+      
+      // Create plane
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      const plane = new THREE.Mesh(geometry, shaderMaterial);
+      scene.add(plane);
+      
+      // Animation loop
+      const animate = () => {
+        animationIdRef.current = requestAnimationFrame(animate);
+        
+        // Update time uniform for pulsing effect
+        if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
+          shaderMaterial.uniforms.time.value += 0.01;
+        }
+        
+        renderer.render(scene, camera);
+      };
+      
+      animate();
+      
+      // Notify parent component that rendering is complete
+      if (onRendered) onRendered();
+    }
     
     const handleResize = () => {
       if (!canvasRef.current || !renderer) return;
@@ -149,7 +240,7 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       
       materialRef.current = null;
     };
-  }, [sigilIndex, onRendered]);
+  }, [sigilIndex, onRendered, customImage]);
   
   return (
     <div 
