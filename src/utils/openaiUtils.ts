@@ -20,7 +20,9 @@ export const modifyShaderWithOpenAI = async (
       throw new Error('OpenAI API key not found');
     }
 
-    console.log('Preparing OpenAI request with intent:', intent);
+    console.log(`Preparing OpenAI request with intent: "${intent}"`);
+    console.log(`Parameters - Energy Level: ${energyLevel}, Complexity: ${complexity}`);
+    
     const prompt = `
       Generate a GLSL fragment shader based on this intent: "${intent}".
       
@@ -36,7 +38,9 @@ export const modifyShaderWithOpenAI = async (
       Return only the modified shader code without explanations.
     `;
 
-    console.log('Sending request to OpenAI API...');
+    console.log('Sending request to OpenAI API with model: gpt-4o...');
+    console.time('openai_request_time');
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -60,20 +64,25 @@ export const modifyShaderWithOpenAI = async (
       })
     });
 
-    console.log('OpenAI API response status:', response.status);
+    console.timeEnd('openai_request_time');
+    console.log(`OpenAI API response status: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
+      console.error('OpenAI API error details:', errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
-    console.log('Received OpenAI shader response');
+    console.log(`Received OpenAI shader response, completion tokens: ${data.usage?.completion_tokens || 'unknown'}`);
+    console.log(`Total tokens used: ${data.usage?.total_tokens || 'unknown'}`);
+    
     const shaderCode = data.choices[0].message.content.trim();
     
     // Generate a brief description
     console.log('Requesting sigil description from OpenAI...');
+    console.time('description_request_time');
+    
     const descriptionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -97,16 +106,20 @@ export const modifyShaderWithOpenAI = async (
       })
     });
 
-    console.log('Description API response status:', descriptionResponse.status);
+    console.timeEnd('description_request_time');
+    console.log(`Description API response status: ${descriptionResponse.status} ${descriptionResponse.statusText}`);
     
     if (!descriptionResponse.ok) {
       const errorData = await descriptionResponse.json();
-      console.error('Description API error:', errorData);
+      console.error('Description API error details:', errorData);
       throw new Error(`Description API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
     }
 
     const descriptionData = await descriptionResponse.json();
+    console.log(`Received description tokens: ${descriptionData.usage?.completion_tokens || 'unknown'}`);
+    
     const description = descriptionData.choices[0].message.content.trim();
+    console.log(`Generated description: "${description}"`);
     console.log('OpenAI process completed successfully');
 
     return {
@@ -114,7 +127,8 @@ export const modifyShaderWithOpenAI = async (
       description
     };
   } catch (error) {
-    console.error('Error modifying shader with OpenAI:', error);
+    console.error('Error in OpenAI shader modification:', error);
+    console.trace('Stack trace for OpenAI error');
     throw error;
   }
 };
