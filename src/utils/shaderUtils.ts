@@ -1,9 +1,6 @@
-
 import * as THREE from 'three';
 
-// Shader code utilities for the Sigil Canvas
-
-// Vertex shader for sigil rendering
+// Vertex shader remains the same
 export const vertexShader = `
   varying vec2 vUv;
   void main() {
@@ -12,56 +9,40 @@ export const vertexShader = `
   }
 `;
 
-// Fragment shader for sigil rendering
+// Updated fragment shader for static color rendering
 export const fragmentShader = `
   #ifdef GL_ES
   precision mediump float;
   #endif
   
   uniform sampler2D u_texture;
-  uniform float time;
-  uniform vec2 resolution;
   varying vec2 vUv;
   
   void main() {
-    // Distort UVs slightly based on time
-    vec2 uv = vUv;
-    uv.x += sin(uv.y * 10.0 + time * 0.5) * 0.01;
-    uv.y += cos(uv.x * 10.0 + time * 0.5) * 0.01;
-    
     // Texture lookup from sigil
-    vec4 tex = texture2D(u_texture, uv);
+    vec4 tex = texture2D(u_texture, vUv);
     
-    // Pulse effect based on time
-    float pulse = 0.5 + 0.5 * sin(time * 2.0 + uv.y * 10.0);
+    // Static purple color matching the UI
+    vec3 staticColor = vec3(0.5569, 0.4902, 0.8196); // Approximate purple from the image
     
-    // Glow effect
-    float glow = 0.8 + 0.2 * sin(time * 3.0);
+    // Use sigil texture's alpha/brightness to modulate opacity
+    float alpha = tex.r;
     
-    // Create color based on position and time
-    vec3 color = vec3(0.3, 0.4, 0.9) * glow;
-    color += vec3(0.7, 0.3, 0.9) * (1.0 - glow);
-    
-    // Use sigil brightness to drive alpha and color
-    float alpha = tex.r * pulse;
-    
-    gl_FragColor = vec4(color * tex.r, alpha);
+    gl_FragColor = vec4(staticColor, alpha);
   }
 `;
 
-// Create shader material with the given texture and uniforms
+// Create shader material with the given texture
 export const createShaderMaterial = (sigilTexture: THREE.Texture, containerWidth: number, containerHeight: number) => {
   return new THREE.ShaderMaterial({
     uniforms: {
       u_texture: { value: sigilTexture },
-      time: { value: 0.0 },
-      resolution: { value: new THREE.Vector2(containerWidth, containerHeight) }
     },
     vertexShader,
     fragmentShader,
     transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthTest: false, // Add this to ensure transparency works
-    depthWrite: false // Add this to ensure transparency works properly
+    blending: THREE.NormalBlending,
+    depthTest: false,
+    depthWrite: false
   });
 };
