@@ -1,5 +1,5 @@
 import { toast } from "@/components/ui/use-toast";
-import { blueYellowPulseShader, fragmentShader, getShaderForIntent } from "./shaderUtils";
+import { blueYellowPulseShader, fragmentShader, getShaderForIntent, intuitionEchoShader } from "./shaderUtils";
 
 export const isApiKeyConfigured = (): boolean => {
   const apiKey = localStorage.getItem('openai_api_key');
@@ -43,6 +43,10 @@ export const generateIntentBasedShader = (intent: string, energyLevel: number, c
   // First check if we have a specific predefined shader for this intent
   if (lowerIntent.includes("blue") && lowerIntent.includes("yellow") && lowerIntent.includes("pulse")) {
     return blueYellowPulseShader;
+  }
+  
+  if (lowerIntent.includes("intuition") || lowerIntent.includes("echo") || lowerIntent.includes("ripple")) {
+    return intuitionEchoShader;
   }
   
   if ((lowerIntent.includes("fire") || lowerIntent.includes("flame") || lowerIntent.includes("burn")) && 

@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 
 // Vertex shader remains the same
@@ -81,6 +80,50 @@ export const blueYellowPulseShader = `
   }
 `;
 
+// Intuition echo ripple shader (new)
+export const intuitionEchoShader = `
+  #ifdef GL_ES
+  precision mediump float;
+  #endif
+
+  uniform sampler2D u_texture;   // Sigil image
+  uniform float time;
+  uniform vec2 resolution;
+  varying vec2 vUv;
+
+  void main() {
+    vec2 uv = vUv;
+    vec2 center = vec2(0.5, 0.5);
+
+    // Echo ripple distortion radiating from center
+    float dist = distance(uv, center);
+    float echo = sin(10.0 * dist - time * 4.0);
+    float veil = 0.02 * echo;
+
+    uv += normalize(uv - center) * veil;
+
+    // Sigil texture lookup
+    vec4 tex = texture2D(u_texture, uv);
+
+    // Echo shimmer pulsing softly outward
+    float shimmer = 0.5 + 0.5 * sin(time * 6.0 + dist * 20.0);
+
+    // Intent color: intuitive glow (lavender-blue blend)
+    vec3 intuitionColor = mix(vec3(0.4, 0.3, 0.8), vec3(0.7, 0.8, 1.0), shimmer);
+
+    // Blend sigil with intuition glow
+    vec3 color = mix(tex.rgb, intuitionColor, 0.6);
+
+    // Amplify edges as if through spectral veil
+    float edge = smoothstep(0.1, 0.9, tex.r) * shimmer;
+
+    // Subtle bloom effect through alpha + veil shimmer
+    float alpha = tex.r * (0.8 + 0.4 * shimmer + 0.3 * echo);
+
+    gl_FragColor = vec4(color * edge, alpha);
+  }
+`;
+
 // Create shader material with the given texture and optional custom shader code
 export const createShaderMaterial = (
   sigilTexture: THREE.Texture, 
@@ -109,6 +152,10 @@ export const getShaderForIntent = (intent: string): string => {
   
   if (lowerIntent.includes("blue") && lowerIntent.includes("yellow") && lowerIntent.includes("pulse")) {
     return blueYellowPulseShader;
+  }
+  
+  if (lowerIntent.includes("intuition") || lowerIntent.includes("echo") || lowerIntent.includes("ripple")) {
+    return intuitionEchoShader;
   }
   
   // Default shader if no specific intent matches
