@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from 'lucide-react';
 import SigilCanvas from './SigilCanvas';
@@ -8,10 +8,21 @@ interface SigilDisplayProps {
   sigilIndex: number;
   isGenerating: boolean;
   customImage: File | null;
+  shaderCode?: string; // Add shader code prop
 }
 
-const SigilDisplay: React.FC<SigilDisplayProps> = ({ sigilIndex, isGenerating, customImage }) => {
+const SigilDisplay: React.FC<SigilDisplayProps> = ({ 
+  sigilIndex, 
+  isGenerating, 
+  customImage,
+  shaderCode 
+}) => {
   const [isRendered, setIsRendered] = useState(false);
+
+  // Reset rendered state when shader code changes
+  useEffect(() => {
+    setIsRendered(false);
+  }, [shaderCode]);
 
   const handleSigilRender = () => {
     setIsRendered(true);
@@ -47,6 +58,7 @@ const SigilDisplay: React.FC<SigilDisplayProps> = ({ sigilIndex, isGenerating, c
           sigilIndex={sigilIndex} 
           onRendered={handleSigilRender} 
           customImage={customImage}
+          shaderCode={shaderCode} // Pass shader code to SigilCanvas
         />
       )}
       

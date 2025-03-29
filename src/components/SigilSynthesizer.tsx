@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, Wand2, Layers, Code, RefreshCw, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { generateRandomGLSLCode, getDefaultShaderDescription } from '../utils/sigilUtils';
+import { generateRandomGLSLCode, getDefaultShaderDescription, isApiKeyConfigured } from '../utils/sigilUtils';
 import { modifyShaderWithOpenAI } from '../utils/openaiUtils';
 import SigilDisplay from './SigilDisplay';
 import SigilControls from './SigilControls';
@@ -52,10 +52,18 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
       setUseAI(true);
     }
 
-    // Generate random GLSL code for display
-    const randomCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
-    setSigilCode(randomCode);
-  }, [activeSigil, energyLevel, complexity]);
+    // Generate initial random GLSL code
+    const initialCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
+    setSigilCode(initialCode);
+  }, []);
+
+  // Effect to regenerate shader when sliders change (only when not using AI)
+  useEffect(() => {
+    if (!isGenerating && !useAI) {
+      const newCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
+      setSigilCode(newCode);
+    }
+  }, [energyLevel, complexity, activeSigil]);
 
   const saveApiKey = () => {
     if (apiKey.trim()) {
@@ -107,6 +115,7 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
           description: "Using OpenAI to encode your intent into a unique shader...",
         });
         
+        console.log("Starting AI shader generation with intent:", intentText);
         const result = await modifyShaderWithOpenAI(
           intentText,
           baseShader,
@@ -114,15 +123,22 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
           complexity[0]
         );
         
+        console.log("Received AI shader result:", result);
         setSigilCode(result.code);
         setSigilDescription(result.description);
       } else {
         // Use random shader generation without AI
-        const newSigilIndex = Math.floor(Math.random() * SIGIL_COUNT) + 1;
-        setActiveSigil(newSigilIndex);
+        console.log("Using random shader generation (no AI)");
+        const newShaderCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
+        console.log("Generated new shader code:", newShaderCode.substring(0, 100) + "...");
+        setSigilCode(newShaderCode);
         
         // Reset to default description for non-AI generated sigils
         setSigilDescription(getDefaultShaderDescription());
+
+        // Still cycle through sigils for visual variation
+        const newSigilIndex = Math.floor(Math.random() * SIGIL_COUNT) + 1;
+        setActiveSigil(newSigilIndex);
       }
       
       toast({
@@ -191,6 +207,7 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
               sigilIndex={activeSigil} 
               isGenerating={isGenerating} 
               customImage={customImage}
+              shaderCode={sigilCode} // Pass shader code to SigilDisplay
             />
             <SigilControls 
               energyLevel={energyLevel}
@@ -242,7 +259,12 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
               </TabsContent>
               
               <TabsContent value="properties" className="mt-0">
-                <SigilProperties energyLevel={energyLevel} complexity={complexity} />
+                <SigilProperties 
+                  energyLevel={energyLevel} 
+                  complexity={complexity} 
+                  description={sigilDescription}
+                  apiConfigured={isApiKeyConfigured()}
+                />
               </TabsContent>
             </Tabs>
           </div>
