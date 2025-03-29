@@ -29,8 +29,9 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
     // Setup
     const container = canvasRef.current;
     
-    // Create scene
+    // Create scene with black background
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000); // Set black background
     sceneRef.current = scene;
     
     // Create camera
@@ -73,8 +74,8 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       const animate = () => {
         animationIdRef.current = requestAnimationFrame(animate);
         
-        // Update uniforms
-        if (shaderMaterial.uniforms) {
+        // Update time uniform for pulsing effect
+        if (shaderMaterial.uniforms && shaderMaterial.uniforms.time) {
           shaderMaterial.uniforms.time.value += 0.01;
         }
         
@@ -92,7 +93,7 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       console.error(`Error loading sigil texture: ${error.message}`);
       // Fallback to a simple material if texture fails
       const fallbackMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x7766cc,
+        color: 0xffffff,
         transparent: true,
         opacity: 0.7
       });
@@ -122,10 +123,6 @@ const SigilCanvas: React.FC<SigilCanvasProps> = ({ sigilIndex, onRendered }) => 
       
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
-      
-      if (materialRef.current && materialRef.current.uniforms) {
-        materialRef.current.uniforms.resolution.value.set(width, height);
-      }
     };
     
     window.addEventListener('resize', handleResize);

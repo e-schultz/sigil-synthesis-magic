@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 
 // Vertex shader remains the same
@@ -9,26 +10,38 @@ export const vertexShader = `
   }
 `;
 
-// Updated fragment shader for static color rendering
+// Updated fragment shader for pulsing white circle on black background
 export const fragmentShader = `
   #ifdef GL_ES
   precision mediump float;
   #endif
   
   uniform sampler2D u_texture;
+  uniform float time;
   varying vec2 vUv;
   
   void main() {
-    // Texture lookup from sigil
+    // Center the coordinates
+    vec2 centeredUv = vUv - 0.5;
+    
+    // Calculate distance from center (for circle shape)
+    float dist = length(centeredUv);
+    
+    // Create a circle mask based on the texture
     vec4 tex = texture2D(u_texture, vUv);
+    float circleMask = tex.r;
     
-    // Static purple color matching the UI
-    vec3 staticColor = vec3(0.5569, 0.4902, 0.8196); // Approximate purple from the image
+    // Create pulsing effect
+    float pulse = 0.7 + 0.3 * sin(time * 2.0);
     
-    // Use sigil texture's alpha/brightness to modulate opacity
-    float alpha = tex.r;
+    // White color with pulsing intensity
+    vec3 color = vec3(1.0, 1.0, 1.0) * pulse;
     
-    gl_FragColor = vec4(staticColor, alpha);
+    // Final color: white circle on black background
+    // Use the sigil texture as a mask for the circle shape
+    float alpha = circleMask * pulse;
+    
+    gl_FragColor = vec4(color, alpha);
   }
 `;
 
@@ -37,11 +50,12 @@ export const createShaderMaterial = (sigilTexture: THREE.Texture, containerWidth
   return new THREE.ShaderMaterial({
     uniforms: {
       u_texture: { value: sigilTexture },
+      time: { value: 0.0 }
     },
     vertexShader,
     fragmentShader,
     transparent: true,
-    blending: THREE.NormalBlending,
+    blending: THREE.AdditiveBlending,
     depthTest: false,
     depthWrite: false
   });
