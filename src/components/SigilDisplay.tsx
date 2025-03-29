@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from 'lucide-react';
 import SigilCanvas from './SigilCanvas';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 interface SigilDisplayProps {
   sigilIndex: number;
   isGenerating: boolean;
   customImage: File | null;
-  shaderCode?: string; // Add shader code prop
+  shaderCode?: string; 
 }
 
 const SigilDisplay: React.FC<SigilDisplayProps> = ({ 
@@ -18,6 +19,7 @@ const SigilDisplay: React.FC<SigilDisplayProps> = ({
   shaderCode 
 }) => {
   const [isRendered, setIsRendered] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   // Reset rendered state when shader code changes
   useEffect(() => {
@@ -45,7 +47,7 @@ const SigilDisplay: React.FC<SigilDisplayProps> = ({
   };
 
   return (
-    <div className="h-[300px] bg-black/10 dark:bg-white/5 rounded-lg overflow-hidden relative">
+    <div className={`${isMobile ? 'h-[250px]' : 'h-[300px]'} bg-black/10 dark:bg-white/5 rounded-lg overflow-hidden relative`}>
       {isGenerating ? (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col items-center">
@@ -58,7 +60,7 @@ const SigilDisplay: React.FC<SigilDisplayProps> = ({
           sigilIndex={sigilIndex} 
           onRendered={handleSigilRender} 
           customImage={customImage}
-          shaderCode={shaderCode} // Pass shader code to SigilCanvas
+          shaderCode={shaderCode}
         />
       )}
       
@@ -66,12 +68,12 @@ const SigilDisplay: React.FC<SigilDisplayProps> = ({
         <div className="absolute bottom-3 right-3 flex space-x-2">
           <Button 
             variant="outline" 
-            size="sm" 
+            size={isMobile ? "sm" : "sm"}
             className="bg-background/80 backdrop-blur-sm"
             onClick={handleDownload}
           >
-            <Download className="h-4 w-4 mr-1" />
-            <span>Export</span>
+            <Download className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'} mr-1`} />
+            <span className={isMobile ? "text-xs" : "text-sm"}>Export</span>
           </Button>
         </div>
       )}
