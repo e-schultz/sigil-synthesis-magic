@@ -26,3 +26,8 @@ void main() {
   gl_FragColor = vec4(vec3(tex.r), alpha);
 }`;
 };
+
+// Add a default shader description for non-AI generated shaders
+export const getDefaultShaderDescription = (): string => {
+  return "A mystical sigil pulsing with arcane energy, binding intent to reality.";
+};
