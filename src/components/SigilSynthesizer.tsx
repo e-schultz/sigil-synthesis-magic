@@ -8,7 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, Wand2, Layers, Code, RefreshCw, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { generateRandomGLSLCode, getDefaultShaderDescription, isApiKeyConfigured, saveApiKey, clearApiKey } from '../utils/sigilUtils';
+import { 
+  generateRandomGLSLCode, 
+  getDefaultShaderDescription, 
+  isApiKeyConfigured, 
+  saveApiKey, 
+  clearApiKey,
+  generateIntentBasedShader,
+  generateShaderDescription
+} from '../utils/sigilUtils';
 import { modifyShaderWithOpenAI } from '../utils/openaiUtils';
 import SigilDisplay from './SigilDisplay';
 import SigilControls from './SigilControls';
@@ -119,12 +127,15 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
         setSigilCode(result.code);
         setSigilDescription(result.description);
       } else {
-        addLogEntry("Using random shader generation (no AI)");
-        const newShaderCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
-        addLogEntry("Random shader generated");
+        // Use the new intent-based shader generation
+        addLogEntry("Using intent-based shader generation (no OpenAI)");
+        const newShaderCode = generateIntentBasedShader(intentText, energyLevel[0], complexity[0]);
+        addLogEntry("Intent-based shader generated");
         setSigilCode(newShaderCode);
         
-        setSigilDescription(getDefaultShaderDescription());
+        // Generate a basic description based on intent
+        const newDescription = generateShaderDescription(intentText);
+        setSigilDescription(newDescription);
 
         const newSigilIndex = Math.floor(Math.random() * SIGIL_COUNT) + 1;
         setActiveSigil(newSigilIndex);

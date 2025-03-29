@@ -1,4 +1,3 @@
-
 interface ShaderModificationResponse {
   code: string;
   description: string;
@@ -51,6 +50,12 @@ export const modifyShaderWithOpenAI = async (
       Your response must be valid GLSL code only, keep the same uniform variables.
       Make the code visually represent the intent through colors, patterns, and animations.
       Return only the modified shader code without explanations.
+      
+      Focus on:
+      1. Color choices that represent the intent (e.g., blue for calm, red for passion)
+      2. Animation speeds and patterns that match the energy level
+      3. Distortion and complexity that match the complexity parameter
+      4. Staying compatible with THREE.js and WebGL
     `;
 
     console.log('Sending request to OpenAI API with model: gpt-4o...');
