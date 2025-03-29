@@ -1,15 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import SigilCanvas from './SigilCanvas';
-import { Sparkles, Wand2, Download, Copy, Layers, Code, RefreshCw } from 'lucide-react';
+import { Sparkles, Wand2, Layers, Code, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { generateRandomGLSLCode } from '../utils/sigilUtils';
+import SigilDisplay from './SigilDisplay';
+import SigilControls from './SigilControls';
+import SigilCodeDisplay from './SigilCodeDisplay';
+import SigilProperties from './SigilProperties';
 
 const SIGIL_COUNT = 5;
 
@@ -23,21 +26,14 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
   const [energyLevel, setEnergyLevel] = useState([50]);
   const [complexity, setComplexity] = useState([30]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isRendered, setIsRendered] = useState(false);
   const [sigilCode, setSigilCode] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
-    setIsRendered(false);
-    
     // Generate random GLSL code for display
-    const randomCode = generateRandomGLSLCode();
+    const randomCode = generateRandomGLSLCode(energyLevel[0], complexity[0]);
     setSigilCode(randomCode);
-  }, [activeSigil]);
-
-  const handleSigilRender = () => {
-    setIsRendered(true);
-  };
+  }, [activeSigil, energyLevel, complexity]);
 
   const generateSigil = () => {
     if (!intentText.trim()) {
@@ -64,42 +60,6 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     }, 2000);
   };
 
-  const copySigilCode = () => {
-    navigator.clipboard.writeText(sigilCode);
-    toast({
-      title: "Shader Code Copied",
-      description: "Sigil shader code has been copied to clipboard.",
-    });
-  };
-
-  const generateRandomGLSLCode = () => {
-    return `#ifdef GL_ES
-precision mediump float;
-#endif
-
-uniform sampler2D u_texture;   // Sigil image
-uniform float time;
-uniform vec2 resolution;
-
-void main() {
-  vec2 uv = gl_FragCoord.xy / resolution.xy;
-  
-  // Distortion based on intent energy (${energyLevel[0]})
-  uv.x += sin(uv.y * ${(complexity[0] / 10).toFixed(1)} + time) * 0.01;
-  
-  // Sigil texture lookup
-  vec4 tex = texture2D(u_texture, uv);
-  
-  // Pulse effect with complexity factor ${(complexity[0] / 20).toFixed(1)}
-  float pulse = 0.5 + 0.5 * sin(time * ${(energyLevel[0] / 20).toFixed(1)});
-  
-  // Alpha modulation
-  float alpha = tex.r * pulse;
-  
-  gl_FragColor = vec4(vec3(tex.r), alpha);
-}`;
-  };
-
   return (
     <Card className={cn("w-full max-w-4xl mx-auto", className)}>
       <CardHeader>
@@ -118,55 +78,14 @@ void main() {
       <CardContent>
         <div className="grid md:grid-cols-5 gap-6">
           <div className="md:col-span-3 space-y-6">
-            <div className="h-[300px] bg-black/10 dark:bg-white/5 rounded-lg overflow-hidden relative">
-              {isGenerating ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex flex-col items-center">
-                    <RefreshCw className="h-8 w-8 animate-spin mb-2 text-primary" />
-                    <p className="text-sm text-muted-foreground">Synthesizing Sigil...</p>
-                  </div>
-                </div>
-              ) : (
-                <SigilCanvas sigilIndex={activeSigil} onRendered={handleSigilRender} />
-              )}
-              
-              {!isGenerating && isRendered && (
-                <div className="absolute bottom-3 right-3 flex space-x-2">
-                  <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
-                    <Download className="h-4 w-4 mr-1" />
-                    <span>Export</span>
-                  </Button>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Energy Intensity</label>
-                <span className="text-xs text-muted-foreground">{energyLevel[0]}%</span>
-              </div>
-              <Slider
-                value={energyLevel}
-                min={10}
-                max={100}
-                step={1}
-                onValueChange={setEnergyLevel}
-                disabled={isGenerating}
-              />
-              
-              <div className="flex items-center justify-between pt-2">
-                <label className="text-sm font-medium">Sigil Complexity</label>
-                <span className="text-xs text-muted-foreground">{complexity[0]}%</span>
-              </div>
-              <Slider
-                value={complexity}
-                min={10}
-                max={100}
-                step={1}
-                onValueChange={setComplexity}
-                disabled={isGenerating}
-              />
-            </div>
+            <SigilDisplay sigilIndex={activeSigil} isGenerating={isGenerating} />
+            <SigilControls 
+              energyLevel={energyLevel}
+              setEnergyLevel={setEnergyLevel}
+              complexity={complexity}
+              setComplexity={setComplexity}
+              isGenerating={isGenerating}
+            />
           </div>
           
           <div className="md:col-span-2 space-y-4">
@@ -196,54 +115,11 @@ void main() {
               </TabsList>
               
               <TabsContent value="shader" className="mt-0">
-                <div className="relative">
-                  <pre className="text-xs bg-black/5 dark:bg-white/5 p-3 rounded-md max-h-[220px] overflow-auto">
-                    <code className="font-mono">{sigilCode}</code>
-                  </pre>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="absolute top-2 right-2" 
-                    onClick={copySigilCode}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                <SigilCodeDisplay code={sigilCode} />
               </TabsContent>
               
               <TabsContent value="properties" className="mt-0">
-                <div className="bg-black/5 dark:bg-white/5 p-3 rounded-md h-[220px] overflow-auto">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Type:</span>
-                      <span className="font-medium">Fragment Shader</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Resonance:</span>
-                      <span className="font-medium">{energyLevel[0] > 70 ? 'High' : energyLevel[0] > 40 ? 'Medium' : 'Low'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Harmony:</span>
-                      <span className="font-medium">{complexity[0] > 60 ? 'Complex' : 'Simple'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Compatibility:</span>
-                      <span className="font-medium">WebGL, Three.js, p5.js</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Memory Echo:</span>
-                      <span className="font-medium">Enabled</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Distortion:</span>
-                      <span className="font-medium">Shape-Aware</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Generated:</span>
-                      <span className="font-medium">{new Date().toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
+                <SigilProperties energyLevel={energyLevel} complexity={complexity} />
               </TabsContent>
             </Tabs>
           </div>
