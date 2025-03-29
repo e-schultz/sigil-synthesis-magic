@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,9 +64,8 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
     }
   }, [energyLevel, complexity, activeSigil]);
 
-  const saveApiKey = () => {
-    if (apiKey.trim()) {
-      localStorage.setItem('openai_api_key', apiKey.trim());
+  const saveOpenAIKey = () => {
+    if (saveApiKey(apiKey)) {
       setUseAI(true);
       setApiKeyDialogOpen(false);
       toast({
@@ -76,15 +74,15 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
       });
     } else {
       toast({
-        title: "API Key Required",
-        description: "Please enter a valid OpenAI API key.",
+        title: "Invalid API Key",
+        description: "Please enter a valid OpenAI API key starting with 'sk-'.",
         variant: "destructive"
       });
     }
   };
 
-  const clearApiKey = () => {
-    localStorage.removeItem('openai_api_key');
+  const clearOpenAIKey = () => {
+    clearApiKey();
     setUseAI(false);
     setApiKey('');
     toast({
@@ -341,11 +339,11 @@ const SigilSynthesizer: React.FC<SigilSynthesizerProps> = ({ className }) => {
           </div>
           <DialogFooter className="flex space-x-2 justify-end">
             {localStorage.getItem('openai_api_key') && (
-              <Button variant="outline" onClick={clearApiKey}>
+              <Button variant="outline" onClick={clearOpenAIKey}>
                 Remove Key
               </Button>
             )}
-            <Button onClick={saveApiKey}>Save API Key</Button>
+            <Button onClick={saveOpenAIKey}>Save API Key</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
