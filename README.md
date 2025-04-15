@@ -1,69 +1,70 @@
-# Welcome to your Lovable project
 
-## Project info
+# Sigil Synthesizer: Generative Shader Art Platform
 
-**URL**: https://lovable.dev/projects/ce61bd87-05a0-47f4-9845-d3496d9af647
+## Project Overview
 
-## How can I edit this code?
+Sigil Synthesizer is an experimental web application that explores the intersection of generative art, intentionality, and shader programming. The project aims to create a unique platform where users can generate dynamic, code-driven visual sigils that represent abstract concepts, intentions, or emotional states.
 
-There are several ways of editing your application.
+## Core Concepts
 
-**Use Lovable**
+### Shader Generation
+The application uses GLSL fragment shaders to create dynamic, procedurally generated visual representations. By translating user intents into complex shader code, the platform explores how computational art can visualize abstract concepts.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ce61bd87-05a0-47f4-9845-d3496d9af647) and start prompting.
+### Key Features
+- **Intent-Driven Shader Generation**: Transform textual descriptions into unique visual shaders
+- **Dynamic Color Palettes**: Generate color schemes based on input energy and complexity
+- **Interactive Shader Manipulation**: Adjust shader parameters in real-time
+- **Sigil Visualization**: Create mystical, generative art pieces that evolve based on user input
 
-Changes made via Lovable will be committed automatically to this repo.
+## Technical Exploration
 
-**Use your preferred IDE**
+The project delves into several interesting technical and creative domains:
+- Procedural shader generation
+- Mapping abstract concepts to visual representations
+- Real-time graphics programming
+- Generative art techniques
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Technologies
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- React with TypeScript
+- Three.js for 3D graphics
+- GLSL for shader programming
+- Tailwind CSS for styling
+- Shadcn UI for component design
 
-Follow these steps:
+## Philosophical Underpinnings
+
+Sigil Synthesizer explores the concept of intentionality as a generative force. It asks:
+- How can computational systems translate abstract human intentions into visual forms?
+- What emerges when we combine algorithmic generation with human creativity?
+- Can technology serve as a medium for exploring metaphysical concepts?
+
+## Future Directions
+
+Potential future explorations include:
+- Machine learning-enhanced shader generation
+- Collaborative sigil creation
+- Deeper integration of symbolic and generative art principles
+
+## Getting Started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone <repository-url>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Contributing
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Interested in contributing? We welcome explorations at the intersection of art, technology, and intention. Please reach out or submit a pull request.
 
-**Use GitHub Codespaces**
+## License
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+[Specify your license here]
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/ce61bd87-05a0-47f4-9845-d3496d9af647) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+**Experimental Art Platform | Generative Shader Synthesis**
